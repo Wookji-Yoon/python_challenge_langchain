@@ -40,7 +40,7 @@ with st.sidebar:
 
 
 if file:
-    retriever = embed_file(file)
+    retriever = embed_file(file, USER_OPENAI_API_KEY)
 
     for message in st.session_state["message"]:
         with st.chat_message(message["role"]):
