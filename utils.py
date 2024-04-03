@@ -40,7 +40,7 @@ from langchain.vectorstores import FAISS
 
 
 @st.cache_data(show_spinner="Embedding file...")
-def embed_file(file):
+def embed_file(file, api_key):
     file_content = file.read()
     file_path = f"./streamlit_cache/{file.name}"
     with open(file_path, "wb") as f:
@@ -56,7 +56,7 @@ def embed_file(file):
 
     split_docs = splitter.split_documents(documents=load_docs)
 
-    embeddings = OpenAIEmbeddings()
+    embeddings = OpenAIEmbeddings(api_key=api_key)
     cache_dir = LocalFileStore("./streamlit_cache/embeddings/{file.name}")
 
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(embeddings, cache_dir)

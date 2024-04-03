@@ -21,6 +21,7 @@ if "message" not in st.session_state:
 file = False
 
 with st.sidebar:
+    st.write("version 2.0")
     st.write("This is my Github repo link!")
     st.write(
         "https://github.com/Wookji-Yoon/python_challenge_langchain/commit/230db85b19af37dea9dcd6afa4b97a327c05a2af"
