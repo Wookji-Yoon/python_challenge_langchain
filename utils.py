@@ -66,6 +66,26 @@ def embed_file(file, api_key):
     return retriever
 
 
+@st.cache_data(show_spinner="Reading file...")
+def split_file(file):
+    file_content = file.read()
+    file_path = f"./streamlit_cache/{file.name}"
+    with open(file_path, "wb") as f:
+        f.write(file_content)
+    loader = UnstructuredFileLoader(file_path)
+    load_docs = loader.load()
+
+    splitter = CharacterTextSplitter.from_tiktoken_encoder(
+        separator="\n",
+        chunk_size=500,
+        chunk_overlap=0,
+    )
+
+    split_docs = splitter.split_documents(documents=load_docs)
+
+    return split_docs
+
+
 def save_message(role, message):
     st.session_state["message"].append(
         {
@@ -127,4 +147,92 @@ def use_chatmodel(question, retriever, model, memory):
     result = invoke_chain_and_save_memory(
         chain=final_chain, question=question, memory=memory
     )
+    return result
+
+
+@st.cache_data(show_spinner="Create Quiz...")
+def create_quiz_with_function_calling(api_key, docs, difficulty):
+    import json
+
+    function = {
+        "name": "create_quiz",
+        "description": "function that takes a list of questions and answers and returns a quiz",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {
+                                "type": "string",
+                            },
+                            "answers": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "answer": {
+                                            "type": "string",
+                                        },
+                                        "correct": {
+                                            "type": "boolean",
+                                        },
+                                    },
+                                    "required": ["answer", "correct"],
+                                },
+                            },
+                        },
+                        "required": ["question", "answers"],
+                    },
+                }
+            },
+            "required": ["questions"],
+        },
+    }
+
+    llm = ChatOpenAI(temperature=0.1, api_key=api_key).bind(
+        function_call={"name": "create_quiz"},
+        functions=[function],
+    )
+
+    prompt = ChatPromptTemplate(
+        messages=[
+            SystemMessagePromptTemplate.from_template(
+                """
+            You are a helpful assistant that is role playing as a teacher.        
+            Based ONLY on the following context make 5 (FIVE) questions to test the user's knowledge about the text.    
+            Each question should have 4 answers, three of them must be incorrect and one should be correct.
+            Please answer as the json format.
+            
+            When the diffuculty is 'Hard', answer options should be sentence.
+            When the difficulty is 'Easy', answer options shoud be word.
+         
+            Here are the Question examples(use (o) to signal the correct answer):
+         
+            Question: What is the color of the ocean?
+            Answers(Easy): Red|Yellow|Green|Blue(o)
+            Answers(Hard): The coror is red | The color is yellow | The color is green | The color is blue
+            
+            Question: What is the capital of Georgia?
+            Answers(Easy): Baku|Tbilisi(o)|Manila|Beirut
+            Answers(Hard): The capital of Georgia is Baku | The capital of Georgia is Tbilisi | The capital of Georgia is Manila | The capital of Georgia is Beirut
+            \n
+            NOW, IT's YOUR TURN!
+            CONTEXT IS BELOW 
+            --------
+            {context}\n\n
+            """
+            ),
+        ]
+    )
+
+    chain = prompt | llm
+    response = chain.invoke({"context": docs})
+
+    response = response.additional_kwargs["function_call"]["arguments"]
+
+    result = json.loads(response)
+
     return result
