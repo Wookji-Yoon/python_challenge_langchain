@@ -10,10 +10,13 @@ st.markdown(
 # Hello!
             
 Welcome to my FullstackGPT Portfolio!
+
+This is my Github repo link
+https://github.com/Wookji-Yoon/python_challenge_langchain
             
 Here are the apps I made:
             
-- [1st Assignment](/DocumentGPT)
-- [2nd Assignment](/QuizGPT)
+- [1st Assignment_DocumentGPT](/DocumentGPT)
+- [2nd Assignment_QuizGPT](/QuizGPT)
 """
 )
