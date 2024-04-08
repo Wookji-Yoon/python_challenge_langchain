@@ -1,15 +1,21 @@
-# Migrate the RAG pipeline you implemented in the previous assignments to Streamlit.
-# Implement file upload and chat history.
-# Allow the user to use its own OpenAI API Key, load it from an st.input inside of st.sidebar
-# Using st.sidebar put a link to the Github repo with the code of your Streamlit app.
-
+# 함수 호출을 사용합니다.
+# 유저가 시험의 난이도를 커스터마이징 할 수 있도록 하고 LLM이 어려운 문제 또는 쉬운 문제를 생성하도록 합니다.
+# 만점이 아닌 경우 유저가 시험을 다시 치를 수 있도록 허용합니다.
+# 만점이면 st.ballons를 사용합니다.
+# 유저가 자체 OpenAI API 키를 사용하도록 허용하고, st.sidebar 내부의 st.input에서 로드합니다.
+# st.sidebar를 사용하여 Streamlit app의 코드와 함께 Github 리포지토리에 링크를 넣습니다.
 
 import streamlit as st
-from utils import embed_file, save_message, use_chatmodel, define_model_and_memory
+from utils import (
+    load_coudfare_website,
+    save_message,
+    use_chatmodel,
+    define_model_and_memory,
+)
 
-st.set_page_config(page_title="FullstackGPT First Assignment", page_icon="🤖")
 
-# initialize session_state
+st.set_page_config(page_title="FullstackGPT Third Assignment", page_icon="🤖")
+
 if "message" not in st.session_state:
     st.session_state["message"] = [
         {
@@ -18,35 +24,34 @@ if "message" not in st.session_state:
         }
     ]
 
-file = False
+
+USER_OPENAI_API_KEY = None
 
 with st.sidebar:
     USER_OPENAI_API_KEY = st.text_input(
         label="OpenAI API KEY", placeholder="Fill in your OpenAI API Key"
     )
+
     if USER_OPENAI_API_KEY:
         st.write("API Key Setting finished!")
         model_and_memory = define_model_and_memory(USER_OPENAI_API_KEY)
         model = model_and_memory["model"]
         memory = model_and_memory["memory"]
 
-        file = st.file_uploader(
-            label="Upload your text file (only available for .txt)", type="txt"
-        )
 
-if not file:
+if not USER_OPENAI_API_KEY:
     st.markdown(
         """
-    Welcome to DocumentGPT.
+        # SiteGPT
                 
-    You can ask questions about files you upload.
+        Ask questions about the content of a Cloudfare.
                 
-    Get started by uploading a file on the sidebar.
-    """
+        Start by writing the URL of the website on the sidebar.
+        """
     )
 
-if file:
-    retriever = embed_file(file, USER_OPENAI_API_KEY)
+if USER_OPENAI_API_KEY:
+    retriever = load_coudfare_website(USER_OPENAI_API_KEY)
 
     for message in st.session_state["message"]:
         with st.chat_message(message["role"]):

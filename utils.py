@@ -32,7 +32,7 @@ def invoke_chain_and_save_memory(memory, chain, question):
     return result.content
 
 
-from langchain.document_loaders import UnstructuredFileLoader
+from langchain.document_loaders import UnstructuredFileLoader, SitemapLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings, CacheBackedEmbeddings
 from langchain.storage import LocalFileStore
@@ -86,6 +86,41 @@ def split_file(file):
     return split_docs
 
 
+def parse_docs(soup):
+    main = soup.find("div", {"id": "main"})
+    return main.get_text()
+
+
+@st.cache_data(show_spinner="Reading Cloudfare Website...")
+def load_coudfare_website(api_key):
+    loader = SitemapLoader(
+        web_path="https://developers.cloudflare.com/sitemap.xml",
+        filter_urls=[
+            r"^(.*\/ai-gateway\/).*",
+            r"^(.*\/ai\/).*",
+            r"^(.*\/vectorize\/).*",
+            r"^(.*\/workers-ai\/).*",
+        ],
+        parsing_function=parse_docs,
+    )
+    load_docs = loader.load()
+
+    splitter = CharacterTextSplitter.from_tiktoken_encoder(
+        separator="\n",
+        chunk_size=1000,
+        chunk_overlap=200,
+    )
+
+    split_docs = splitter.split_documents(documents=load_docs)
+    embeddings = OpenAIEmbeddings(api_key=api_key)
+    cache_dir = LocalFileStore("./streamlit_cache/embeddings/cloudfare")
+
+    cached_embeddings = CacheBackedEmbeddings.from_bytes_store(embeddings, cache_dir)
+    vectorstore = FAISS.from_documents(split_docs, cached_embeddings)
+    retriever = vectorstore.as_retriever()
+    return retriever
+
+
 def save_message(role, message):
     st.session_state["message"].append(
         {
@@ -112,6 +147,7 @@ def use_chatmodel(question, retriever, model, memory):
                 """
             Use the following reference document to answer the question of human. \n
             If you don't know the answer, just say that you don't know. Don't try to make up an answer.\n
+            If you can, answer with the source page url, when you use the 'reference document')
             \n
             [reference document]\n
             {context}\n\n
@@ -129,7 +165,9 @@ def use_chatmodel(question, retriever, model, memory):
 
     def retrieve_docs(question):
         docs = retriever.invoke(question)
-        return "\n".join(doc.page_content for doc in docs)
+        return "\n\n".join(
+            doc.page_content + "source: " + doc.metadata["source"] for doc in docs
+        )
 
     def load_memory(_):
         return memory.load_memory_variables({})["chat_history"]
@@ -220,6 +258,10 @@ def create_quiz_with_function_calling(api_key, docs, difficulty):
             Answers(Hard): The capital of Georgia is Baku | The capital of Georgia is Tbilisi | The capital of Georgia is Manila | The capital of Georgia is Beirut
             \n
             NOW, IT's YOUR TURN!
+            
+            THE DIFFICULTY IS {difficulty}
+            
+            
             CONTEXT IS BELOW 
             --------
             {context}\n\n
@@ -229,7 +271,7 @@ def create_quiz_with_function_calling(api_key, docs, difficulty):
     )
 
     chain = prompt | llm
-    response = chain.invoke({"context": docs})
+    response = chain.invoke({"context": docs, "difficulty": difficulty})
 
     response = response.additional_kwargs["function_call"]["arguments"]
 

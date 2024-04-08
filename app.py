@@ -18,5 +18,6 @@ Here are the apps I made:
             
 - [1st Assignment_DocumentGPT](/DocumentGPT)
 - [2nd Assignment_QuizGPT](/QuizGPT)
+- [3nd Assignment_SiteGPT](/SiteGPT)
 """
 )
