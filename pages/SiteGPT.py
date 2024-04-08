@@ -28,6 +28,7 @@ if "message" not in st.session_state:
 USER_OPENAI_API_KEY = None
 
 with st.sidebar:
+    st.markdown("https://github.com/Wookji-Yoon/python_challenge_langchain")
     USER_OPENAI_API_KEY = st.text_input(
         label="OpenAI API KEY", placeholder="Fill in your OpenAI API Key"
     )
